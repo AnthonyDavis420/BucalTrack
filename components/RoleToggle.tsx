@@ -1,22 +1,18 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import {
-  ShieldCheck,
-  Users,
-  GraduationCap,
-  Trophy,
-} from 'lucide-react';
+import { useState } from "react";
+import { ShieldCheck, Users, GraduationCap, Trophy, type LucideIcon } from "lucide-react";
+import type { Role } from "@lib/nav.config";
 
-const items = [
-  { key: 'Admin', label: 'Admin', Icon: ShieldCheck },
-  { key: 'Staff', label: 'Staff', Icon: Users },
-  { key: 'School', label: 'School', Icon: GraduationCap },
-  { key: 'Coach', label: 'Coach', Icon: Trophy },
-] as const;
+// Strongly-typed items array (no 'as Role' needed)
+const items: ReadonlyArray<{ key: Role; label: string; Icon: LucideIcon }> = [
+  { key: "admin",  label: "Admin",  Icon: ShieldCheck },
+  { key: "staff",  label: "Staff",  Icon: Users },
+  { key: "school", label: "School", Icon: GraduationCap },
+  { key: "coach",  label: "Coach",  Icon: Trophy },
+];
 
-type Role = (typeof items)[number]['key'];
-export type { Role };              // export for parent forms
+export type { Role }; // re-export for parent forms
 
 export default function RoleToggle({
   value,
@@ -25,7 +21,7 @@ export default function RoleToggle({
   value?: Role;
   onChange?: (r: Role) => void;
 }) {
-  const [role, setRole] = useState<Role>(value ?? 'Admin');
+  const [role, setRole] = useState<Role>(value ?? "admin");
 
   function handleClick(r: Role) {
     setRole(r);
@@ -33,22 +29,29 @@ export default function RoleToggle({
   }
 
   return (
-    <div className="flex rounded-xl bg-gray-200 p-1">
+    <div
+      className="inline-flex w-full rounded-xl bg-gray-200 p-1 overflow-hidden"
+      role="tablist"
+      aria-label="Select role"
+    >
       {items.map(({ key, label, Icon }) => {
         const active = role === key;
         return (
           <button
             key={key}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => handleClick(key)}
-            className={`flex items-center gap-1.5 whitespace-nowrap
-              px-4 py-2 rounded-lg text-sm font-medium transition
-              ${active
-                ? 'bg-white shadow-sm text-gray-900'
-                : 'text-gray-600 hover:text-gray-800'}`}
+            className={[
+              "flex-1 flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium transition",
+              // let the container handle the rounding; prevents clipping/overlap
+              active ? "bg-white text-gray-900" : "text-gray-600 hover:text-gray-800",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+            ].join(" ")}
           >
-            <Icon size={16} strokeWidth={active ? 2 : 1.5} />
-            {label}
+            <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2 : 1.5} />
+            <span className="whitespace-nowrap">{label}</span>
           </button>
         );
       })}
