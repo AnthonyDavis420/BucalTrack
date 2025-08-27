@@ -1,222 +1,298 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Trophy, Phone, Mail, Plus, MoreVertical } from 'lucide-react';
+import { useMemo, useState } from "react";
+import { Plus, Edit, Trash2, Search, Clipboard, ClipboardCheck } from "lucide-react";
+import AddCoach from "@components/modals/AddCoach";
+import AssignSports from "@components/modals/AssignSports";
 
-interface User {
+/* ========= Types ========= */
+type Sport = string;
+
+type Coach = {
+  id: number;
+  name: string;
   email: string;
-  role: string;
-  isAuthenticated: boolean;
-}
+  accessCode: string;
+  sports: Sport[];
+};
 
-export default function SchoolCoachesPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+const ALL_SPORTS: Sport[] = ["Basketball - Junior", "Basketball - Senior's", "Volleyball Men"];
 
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      if (parsedUser.isAuthenticated && parsedUser.role === 'school') {
-        setUser(parsedUser);
-      } else {
-        router.push('/');
-      }
-    } else {
-      router.push('/');
-    }
-    setIsLoading(false);
-  }, [router]);
+export default function Page() {
+  const [coaches, setCoaches] = useState<Coach[]>([
+    {
+      id: 1,
+      name: "Juan Dela Cruz",
+      email: "juan@school.edu",
+      accessCode: "AB12CD34",
+      sports: ["Basketball - Junior"],
+    },
+    {
+      id: 2,
+      name: "Maria Santos",
+      email: "maria@school.edu",
+      accessCode: "EF56GH78",
+      sports: ["Volleyball Men"],
+    },
+  ]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeCoach, setActiveCoach] = useState<Coach | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [sportFilter, setSportFilter] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return coaches.filter((c) => {
+      const matchesQuery =
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.accessCode.toLowerCase().includes(q) ||
+        c.sports.some((s) => s.toLowerCase().includes(q));
+      const matchesSport = !sportFilter || c.sports.some((s) => s.toLowerCase() === sportFilter);
+      return matchesQuery && matchesSport;
+    });
+  }, [coaches, query, sportFilter]);
+
+  const handleAddCoach = (data: { name: string; email: string; accessCode: string }) => {
+    const newCoach: Coach = {
+      id: Date.now(),
+      name: data.name,
+      email: data.email,
+      accessCode: data.accessCode,
+      sports: [],
+    };
+    setCoaches([...coaches, newCoach]);
+    setShowAddModal(false);
+  };
+
+  const handleEditCoach = (data: { name: string; email: string; accessCode: string }) => {
+    if (!activeCoach) return;
+    setCoaches(
+      coaches.map((c) =>
+        c.id === activeCoach.id ? { ...c, name: data.name, email: data.email, accessCode: data.accessCode } : c
+      )
     );
-  }
+    setShowEditModal(false);
+    setActiveCoach(null);
+  };
 
-  if (!user) {
-    return null;
-  }
+  const confirmDelete = () => {
+    if (!activeCoach) return;
+    setCoaches(coaches.filter((c) => c.id !== activeCoach.id));
+    setShowDeleteModal(false);
+    setActiveCoach(null);
+  };
+
+  const handleAssign = (coach: Coach) => {
+    setActiveCoach(coach);
+    setShowAssignModal(true);
+  };
+
+  const handleSaveSports = (sports: Sport[]) => {
+    if (!activeCoach) return;
+    setCoaches(coaches.map((c) => (c.id === activeCoach.id ? { ...c, sports } : c)));
+    setShowAssignModal(false);
+    setActiveCoach(null);
+  };
+
+  const copyCode = async (id: number, code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1200);
+    } catch (_) {
+      alert("Failed to copy");
+    }
+  };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-blue-600" />
-            Coaches
-          </h1>
-          <p className="text-gray-600 mt-1">Manage your school's coaching staff</p>
-        </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+    <div>
+      {/* Header */}
+      <header className="pt-8">
+        <h1 className="text-3xl font-semibold text-gray-900">Coaches</h1>
+        <p className="mt-2 text-sm text-gray-500">Manage the coaches and assign them to sports.</p>
+      </header>
+
+      {/* Subheader row */}
+      <div className="mt-6 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-gray-700">All Coaches</h2>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#071689] text-white text-sm rounded-lg hover:bg-[#0a2099]"
+        >
           <Plus className="h-4 w-4" />
           Add Coach
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-blue-600">8</div>
-          <div className="text-sm text-gray-600">Total Coaches</div>
+      {/* Search + Filter */}
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, email, access code, sport…"
+            className="w-full rounded-md border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#071689]"
+          />
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-green-600">6</div>
-          <div className="text-sm text-gray-600">Active Sports</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-purple-600">45</div>
-          <div className="text-sm text-gray-600">Athletes Coached</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-orange-600">12</div>
-          <div className="text-sm text-gray-600">Years Experience (Avg)</div>
-        </div>
-      </div>
-
-      {/* Coaches List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Coaching Staff</h2>
-        </div>
-        <div className="divide-y divide-gray-200">
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 font-medium">JR</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">John Rodriguez</h3>
-                  <p className="text-sm text-gray-500">Head Basketball Coach</p>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Phone className="h-3 w-3 mr-1" />
-                      +63 912 345 6789
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Mail className="h-3 w-3 mr-1" />
-                      j.rodriguez@school.edu
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">15 years experience</div>
-                  <div className="text-xs text-gray-500">12 athletes • Boys & Girls Basketball</div>
-                </div>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 font-medium">MS</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">Maria Santos</h3>
-                  <p className="text-sm text-gray-500">Swimming Coach</p>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Phone className="h-3 w-3 mr-1" />
-                      +63 917 654 3210
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Mail className="h-3 w-3 mr-1" />
-                      m.santos@school.edu
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">8 years experience</div>
-                  <div className="text-xs text-gray-500">8 athletes • Swimming</div>
-                </div>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-purple-600 font-medium">AL</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">Alex Lopez</h3>
-                  <p className="text-sm text-gray-500">Track & Field Coach</p>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Phone className="h-3 w-3 mr-1" />
-                      +63 905 123 4567
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Mail className="h-3 w-3 mr-1" />
-                      a.lopez@school.edu
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">12 years experience</div>
-                  <div className="text-xs text-gray-500">10 athletes • Track & Field</div>
-                </div>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-orange-600 font-medium">CT</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">Carlos Torres</h3>
-                  <p className="text-sm text-gray-500">Volleyball Coach</p>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Phone className="h-3 w-3 mr-1" />
-                      +63 918 765 4321
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Mail className="h-3 w-3 mr-1" />
-                      c.torres@school.edu
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">10 years experience</div>
-                  <div className="text-xs text-gray-500">15 athletes • Boys & Girls Volleyball</div>
-                </div>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+        <div className="relative w-full sm:w-56">
+          <select
+            value={sportFilter}
+            onChange={(e) => setSportFilter(e.target.value)}
+            className="w-full appearance-none rounded-md border border-gray-300 bg-white pr-8 pl-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#071689]"
+          >
+            <option value="">All Sports</option>
+            {ALL_SPORTS.map((s) => (
+              <option key={s} value={s.toLowerCase()}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">▾</span>
         </div>
       </div>
+
+      {/* Coaches Table */}
+      <div className="mt-6 overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">Name</th>
+              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">Email</th>
+              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">Access Code</th>
+              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">Sports</th>
+              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {filtered.map((coach) => (
+              <tr key={coach.id}>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900">{coach.name}</td>
+                <td className="px-6 py-4 text-sm text-gray-600">{coach.email}</td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono tracking-wider">{coach.accessCode}</span>
+                    <button
+                      onClick={() => copyCode(coach.id, coach.accessCode)}
+                      className="p-1.5 rounded-md border border-gray-200 hover:bg-gray-50"
+                      title="Copy access code"
+                    >
+                      {copiedId === coach.id ? (
+                        <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <Clipboard className="h-4 w-4 text-gray-600" />
+                      )}
+                    </button>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  <div className="flex flex-wrap gap-2">
+                    {coach.sports.length === 0 && <span className="text-gray-400 text-xs">No sports assigned</span>}
+                    {coach.sports.map((s) => (
+                      <span
+                        key={s}
+                        className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                    <button
+                      onClick={() => handleAssign(coach)}
+                      className="inline-flex items-center rounded-full border border-dashed border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50"
+                      title="Assign more sports"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setActiveCoach(coach);
+                        setShowEditModal(true);
+                      }}
+                      className="p-2 text-gray-600 hover:text-blue-600"
+                      title="Edit coach"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveCoach(coach);
+                        setShowDeleteModal(true);
+                      }}
+                      className="p-2 text-gray-600 hover:text-red-600"
+                      title="Delete coach"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modals */}
+      <AddCoach open={showAddModal} onClose={() => setShowAddModal(false)} onSubmit={handleAddCoach} />
+
+      <AddCoach
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleEditCoach}
+        initial={
+          activeCoach
+            ? { name: activeCoach.name, email: activeCoach.email, accessCode: activeCoach.accessCode }
+            : undefined
+        }
+      />
+
+      <AssignSports
+        open={showAssignModal}
+        options={ALL_SPORTS}
+        selected={activeCoach?.sports || []}
+        onChange={(sports) => activeCoach && setActiveCoach({ ...activeCoach, sports })}
+        onConfirm={() => handleSaveSports(activeCoach?.sports || [])}
+        onClose={() => setShowAssignModal(false)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && activeCoach && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDeleteModal(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-lg bg-white shadow-lg">
+            <div className="px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">Delete Coach</h3>
+            </div>
+            <div className="px-6 py-4 text-sm text-gray-700">
+              Are you sure you want to delete <span className="font-medium">{activeCoach.name}</span>? This action cannot be undone.
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

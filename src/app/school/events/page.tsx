@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Calendar, MapPin, Users, Clock, Plus } from 'lucide-react';
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Calendar, Clock, MapPin, Trophy } from "lucide-react";
 
 interface User {
   email: string;
@@ -10,249 +11,209 @@ interface User {
   isAuthenticated: boolean;
 }
 
-export default function SchoolEventsPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('available');
-  const router = useRouter();
+type Status = "Active" | "Upcoming" | "Completed";
+type EventRow = {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  sport: "Basketball" | "Volleyball" | "Cheer & Dance";
+  venue: string;
+  status: Status;
+};
 
+const myEventsSeed: EventRow[] = [
+  {
+    id: "101",
+    name: "ADNU vs NCF",
+    date: "2024-12-15",
+    time: "9:00AM - 12:00PM",
+    sport: "Basketball",
+    venue: "ADNU Gym",
+    status: "Active",
+  },
+  {
+    id: "102",
+    name: "UNC vs ADNU",
+    date: "2024-12-20",
+    time: "2:00PM - 4:00PM",
+    sport: "Volleyball",
+    venue: "UNC Arena",
+    status: "Upcoming",
+  },
+  {
+    id: "103",
+    name: "Cheer & Dance Showcase",
+    date: "2024-12-22",
+    time: "1:00PM - 4:00PM",
+    sport: "Cheer & Dance",
+    venue: "NCF Coliseum",
+    status: "Upcoming",
+  },
+  {
+    id: "104",
+    name: "ADNU vs UNC",
+    date: "2024-12-08",
+    time: "4:30PM - 6:30PM",
+    sport: "Basketball",
+    venue: "UNC Arena",
+    status: "Completed",
+  },
+];
+
+function StatusBadge({ s }: { s: Status }) {
+  const styles =
+    s === "Active"
+      ? "bg-green-100 text-green-700 border-green-200"
+      : s === "Upcoming"
+      ? "bg-gray-100 text-gray-700 border-gray-200"
+      : "bg-blue-100 text-blue-700 border-blue-200";
+  return (
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${styles}`}>
+      {s}
+    </span>
+  );
+}
+
+function EventCardSchool({ event }: { event: EventRow }) {
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white shadow-sm hover:shadow-md transition-shadow p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">{event.name}</h3>
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <Trophy className="h-4 w-4" />
+            <span>{event.sport}</span>
+          </div>
+        </div>
+
+        {/* Status (same look as admin) */}
+        <StatusBadge s={event.status} />
+      </div>
+
+      {/* Event Details */}
+      <div className="space-y-3 mb-4">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Calendar className="h-4 w-4 text-gray-400" />
+          <span>{event.date}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Clock className="h-4 w-4 text-gray-400" />
+          <span>{event.time}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <MapPin className="h-4 w-4 text-gray-400" />
+          <span>{event.venue}</span>
+        </div>
+      </div>
+
+      {/* Action (school can only view) */}
+      <div className="pt-4 border-t border-gray-100">
+        <Link
+          href={`/school/events/${event.id}`}
+          className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          title="View details"
+        >
+          <span>View details</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default function SchoolEventsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
+
+  // Sport filter (fixed options to keep parity with admin)
+  const [sportFilter, setSportFilter] = useState<"all" | "Basketball" | "Volleyball" | "Cheer & Dance">("all");
+
+  // Load auth (same behavior as your previous file)
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      if (parsedUser.isAuthenticated && parsedUser.role === 'school') {
-        setUser(parsedUser);
-      } else {
-        router.push('/');
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      if (!raw) {
+        router.push("/");
+        return;
       }
-    } else {
-      router.push('/');
+      const parsed = JSON.parse(raw) as User;
+      if (parsed?.isAuthenticated && parsed?.role === "school") {
+        setUser(parsed);
+      } else {
+        router.push("/");
+        return;
+      }
+    } finally {
+      setReady(true);
     }
-    setIsLoading(false);
   }, [router]);
 
-  if (isLoading) {
+  const [events] = useState<EventRow[]>(myEventsSeed);
+
+  const filtered = useMemo(
+    () => (sportFilter === "all" ? events : events.filter((e) => e.sport === sportFilter)),
+    [events, sportFilter]
+  );
+
+  if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-lg text-gray-600">Loading...</div>
       </div>
     );
   }
-
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Calendar className="h-6 w-6 text-blue-600" />
-          Events
-        </h1>
-        <p className="text-gray-600 mt-1">Manage your school's event registrations</p>
-      </div>
+    <div className="space-y-6 pt-8">
+      {/* Header (matches admin spacing/typography) */}
+      <header className="mb-6">
+        <h1 className="text-3xl font-semibold text-gray-900">My Events</h1>
+        <p className="mt-2 text-sm text-gray-500">Events your school is participating in</p>
+      </header>
 
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('available')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'available'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+      {/* Card Header with Sport Filter (mirrors admin layout) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h2 className="text-lg font-semibold text-gray-900">All My Events</h2>
+
+        <div className="flex items-center gap-3">
+          {/* Sport Filter */}
+          <div className="relative">
+            <select
+              value={sportFilter}
+              onChange={(e) =>
+                setSportFilter(e.target.value as "all" | "Basketball" | "Volleyball" | "Cheer & Dance")
+              }
+              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 focus:outline-none cursor-pointer shadow-sm"
+              title="Filter by sport"
             >
-              Available Events
-            </button>
-            <button
-              onClick={() => setActiveTab('registered')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'registered'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Registered Events
-            </button>
-          </nav>
+              <option value="all">All Sports</option>
+              <option value="Basketball">Basketball</option>
+              <option value="Volleyball">Volleyball</option>
+              <option value="Cheer & Dance">Cheer &amp; Dance</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+              <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Available Events Tab */}
-      {activeTab === 'available' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow border p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">Basketball Tournament 2024</h3>
-                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                    Open
-                  </span>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Annual inter-school basketball competition featuring boys and girls divisions. 
-                  Teams will compete in a round-robin format followed by elimination rounds.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>March 20-25, 2024</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>Cebu Coliseum</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>Max 2 teams per school</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>Deadline: March 15</span>
-                  </div>
-                </div>
-              </div>
-              <div className="ml-4">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Register
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Events Grid (same grid as admin) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filtered.map((event) => (
+          <EventCardSchool key={event.id} event={event} />
+        ))}
+      </div>
 
-          <div className="bg-white rounded-lg shadow border p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">Swimming Competition 2024</h3>
-                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                    Open
-                  </span>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Swimming championship with individual and relay events across multiple age categories. 
-                  Includes freestyle, backstroke, breaststroke, and butterfly competitions.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>April 5-7, 2024</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>Cebu City Sports Complex</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>Max 20 athletes</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>Deadline: March 30</span>
-                  </div>
-                </div>
-              </div>
-              <div className="ml-4">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Register
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow border p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">Volleyball Championship 2024</h3>
-                  <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                    Coming Soon
-                  </span>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Inter-school volleyball tournament featuring both indoor and beach volleyball competitions. 
-                  Separate divisions for boys and girls teams.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>May 10-15, 2024</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>Various Venues</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>Max 2 teams per school</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>Opens: April 1</span>
-                  </div>
-                </div>
-              </div>
-              <div className="ml-4">
-                <button disabled className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg cursor-not-allowed">
-                  Not Available
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Registered Events Tab */}
-      {activeTab === 'registered' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow border p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">Track and Field Championship</h3>
-                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                    Registered
-                  </span>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Your school is registered for this event with 15 athletes across various track and field disciplines.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>March 28-30, 2024</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>Cebu City Sports Center</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>15 athletes registered</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>Registered on: Feb 20</span>
-                  </div>
-                </div>
-              </div>
-              <div className="ml-4">
-                <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors">
-                  View Details
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center py-8">
-            <p className="text-gray-500">No other registered events</p>
-          </div>
+      {/* Empty state */}
+      {filtered.length === 0 && (
+        <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200 text-center text-sm text-gray-500">
+          No events found for this sport.
         </div>
       )}
     </div>
