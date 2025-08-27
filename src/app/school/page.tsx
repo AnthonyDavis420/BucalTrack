@@ -1,196 +1,190 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-type Role = "admin" | "school";
-interface User {
-  email: string;
-  role: Role;
-  isAuthenticated: boolean;
+interface Announcement {
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  createdAt: string;
+  audience: "all" | "schools_coaches";
+  isPinned?: boolean;
 }
 
-export default function SchoolAnnouncementsPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [ready, setReady] = useState(false);
+export default function Page() {
+  // Same layout/spacing as admin; school users cannot create/edit.
+  const [filter, setFilter] = useState<"all" | "schools_coaches" | "show_all">("show_all");
 
-  useEffect(() => {
-    try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-      if (!raw) {
-        window.location.replace("/");
-        return;
-      }
-      const parsed = JSON.parse(raw) as User;
-      if (parsed?.isAuthenticated && parsed?.role === "school") {
-        setUser(parsed);
-      } else {
-        window.location.replace("/");
-        return;
-      }
-    } catch {
-      window.location.replace("/");
-      return;
-    } finally {
-      setReady(true);
-    }
-  }, []);
+  // Sample announcements data (read-only for school)
+  const [announcements] = useState<Announcement[]>([
+    {
+      id: "1",
+      title: "Document Submission Deadline",
+      description:
+        "All player documents must be submitted by December 8, 2024. Teams with incomplete documents will not be allowed to participate.",
+      author: "Admin",
+      createdAt: "2 days ago",
+      audience: "schools_coaches",
+      isPinned: true,
+    },
+    {
+      id: "2",
+      title: "Basketball Tournament Schedule Update",
+      description:
+        "The basketball tournament schedule has been updated. Please check the new dates and venues on the official tournament page.",
+      author: "Admin",
+      createdAt: "5 days ago",
+      audience: "all",
+      isPinned: false,
+    },
+    {
+      id: "3",
+      title: "Health Screening Reminder",
+      description:
+        "Please remind all your players to complete their health screening before the start of the season.",
+      author: "Admin",
+      createdAt: "1 week ago",
+      audience: "schools_coaches",
+      isPinned: false,
+    },
+  ]);
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
-    );
-  }
-  if (!user) return null;
+  const pinnedAnnouncements = announcements.filter((ann) => ann.isPinned && ann.audience !== "all");
+
+  // Filter announcements based on selected filter
+  const filteredAnnouncements =
+    filter === "show_all" ? announcements : announcements.filter((ann) => ann.audience === filter);
 
   return (
     <div className="flex gap-8">
       {/* Left Column - Announcements */}
       <section className="flex-1">
-        {/* Header */}
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Announcements</h1>
-          <p className="text-sm text-gray-500">Stay updated with the latest BUCAL announcements</p>
+        {/* Header (matches admin spacing) */}
+        <header className="pt-8">
+          <h1 className="text-3xl font-semibold text-gray-900">Announcements</h1>
+          <p className="mt-2 text-sm text-gray-500">View announcements from BUCAL!</p>
         </header>
 
-        {/* Announcement Cards */}
-        <div className="space-y-4">
-          {/* Card 1 */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 text-sm font-medium">BA</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">BUCAL Admin</p>
-                  <p className="text-xs text-gray-500">2 days ago</p>
-                </div>
-              </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <svg
-                  className="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
+        {/* Filter Dropdown (same placement as admin) */}
+        <div className="mt-6 flex items-center justify-end">
+          <span className="text-sm font-medium text-gray-600 mr-3">Filter by:</span>
+          <div className="relative">
+            <select
+              value={filter}
+              onChange={(e) =>
+                setFilter(e.target.value as "all" | "schools_coaches" | "show_all")
+              }
+              className="appearance-none bg-white border-1 border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 focus:outline-none cursor-pointer shadow-sm"
+            >
+              <option value="show_all">All Announcements</option>
+              <option value="all">For Everyone</option>
+              <option value="schools_coaches">Schools & Coaches</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+              <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Basketball Tournament 2024 - Registration Open
-            </h3>
-            <p className="text-gray-600 text-sm">
-              We are excited to announce that registration for the Basketball
-              Tournament 2024 is now open! Schools can register their teams
-              starting today. Please ensure all player documents are complete
-              before submitting your registration.
-            </p>
           </div>
+        </div>
 
-          {/* Card 2 */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-green-600 text-sm font-medium">BA</span>
+        {/* Announcement Cards (read-only) */}
+        <div className="mt-6 space-y-4">
+          {filteredAnnouncements.length > 0 ? (
+            filteredAnnouncements.map((announcement) => (
+              <div
+                key={announcement.id}
+                className="bg-white rounded-lg p-6 shadow-sm border border-gray-200"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-blue-600 text-sm font-medium">A</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{announcement.author}</p>
+                      <p className="text-xs text-gray-500">{announcement.createdAt}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        announcement.audience === "all"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {announcement.audience === "all" ? "All" : "Schools & Coaches"}
+                    </span>
+                    {announcement.isPinned && (
+                      <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                        Pinned
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">BUCAL Admin</p>
-                  <p className="text-xs text-gray-500">5 days ago</p>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{announcement.title}</h3>
+                <p className="text-gray-600 text-sm">{announcement.description}</p>
               </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <svg
-                  className="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
+            ))
+          ) : (
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <p className="text-sm text-gray-500 text-center">
+                No announcements found for the selected filter.
+              </p>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              New Player Screening Requirements
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Effective immediately, all players must complete the new health
-              screening process. This includes updated medical certificates and
-              fitness assessments. Please coordinate with your school's medical
-              team to ensure compliance.
-            </p>
-          </div>
-
-          {/* Card 3 */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-purple-600 text-sm font-medium">BA</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">BUCAL Admin</p>
-                  <p className="text-xs text-gray-500">1 week ago</p>
-                </div>
-              </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <svg
-                  className="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Swimming Competition Venue Change
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Due to maintenance work at the original venue, the Swimming
-              Competition 2024 will now be held at the Cebu City Sports Complex.
-              All registered schools will receive updated venue information and
-              logistics details via email.
-            </p>
-          </div>
+          )}
         </div>
       </section>
 
       {/* Right Column - Pinned */}
-      <aside className="w-80">
+      <aside className="w-80 pt-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Pinned Announcements</h2>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                <span className="text-blue-600 text-xs font-medium">BA</span>
-              </div>
-              <span className="text-xs text-gray-500">BUCAL Admin - Pinned</span>
-            </div>
-            <button className="text-blue-600 hover:text-blue-700">
-              <svg
-                className="w-4 h-4"
-                fill="currentColor"
-                viewBox="0 0 20 20"
+        {pinnedAnnouncements.length > 0 ? (
+          <div className="space-y-3">
+            {pinnedAnnouncements.map((announcement) => (
+              <div
+                key={announcement.id}
+                className="bg-white rounded-lg p-4 shadow-sm border border-gray-200"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                      <span className="text-blue-600 text-xs font-medium">A</span>
+                    </div>
+                    <span className="text-xs text-gray-500">Admin - Pinned</span>
+                  </div>
+                  {/* No unpin in school view */}
+                  <button
+                    className="text-blue-600 hover:text-blue-700 cursor-default"
+                    title="Pinned"
+                    aria-label="Pinned"
+                    disabled
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">{announcement.title}</h4>
+                <p className="text-xs text-gray-600">
+                  {announcement.description.length > 100
+                    ? `${announcement.description.substring(0, 100)}...`
+                    : announcement.description}
+                </p>
+              </div>
+            ))}
           </div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">
-            Basketball Tournament 2024 - Registration Open
-          </h4>
-          <p className="text-xs text-gray-600">
-            We are excited to announce that registration for the Basketball
-            Tournament 2024 is now open! Schools can register their teams
-            starting today.
-          </p>
-        </div>
+        ) : (
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <p className="text-sm text-gray-500 text-center">No pinned announcements</p>
+          </div>
+        )}
       </aside>
     </div>
   );
